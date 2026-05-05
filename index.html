@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>五年級數學：體積探究實驗室 (快速版)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+    <style>
+        * { touch-action: none; -webkit-user-select: none; }
+        body { margin: 0; display: flex; font-family: "Microsoft JhengHei", sans-serif; background: #eceff1; height: 100vh; overflow: hidden; }
+        
+        #sidebar { 
+            width: 340px; background: white; padding: 20px; 
+            box-shadow: 3px 0 10px rgba(0,0,0,0.1); 
+            display: flex; flex-direction: column; z-index: 10;
+            overflow-y: auto; 
+        }
+        
+        #canvas-container { flex-grow: 1; position: relative; background: #cfd8dc; }
+        
+        h2 { color: #2c3e50; font-size: 1.3rem; border-left: 6px solid #2ecc71; padding-left: 12px; margin-top: 0; }
+        .desc { font-size: 14px; color: #607d8b; margin-bottom: 20px; line-height: 1.5; }
+        
+        .input-group { background: #f1f8e9; padding: 15px; border-radius: 12px; line-height: 2.8; margin-bottom: 15px; border: 1px solid #dcedc8; }
+        input { 
+            width: 60px; height: 35px; border: 2px solid #cfd8dc; 
+            text-align: center; font-size: 18px; font-weight: bold; border-radius: 6px;
+            color: #2e7d32;
+        }
+        input:enabled { border-color: #2ecc71; background: #ffffff; }
+        input:disabled { background: #eeeeee; color: #bdbdbd; border-color: #e0e0e0; cursor: not-allowed; }
+
+        .btn { 
+            padding: 16px; margin: 6px 0; border: none; border-radius: 12px; 
+            font-weight: bold; cursor: pointer; font-size: 16px; 
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        #check-btn { background: #2980b9; color: white; }
+        #next-btn { background: #8e44ad; color: white; display: none; }
+        
+        /* 快速鋪層按鈕樣式 */
+        #quick-layer-btn { background: #e67e22; color: white; display: none; }
+        
+        .auto-gen-btn { background: #f39c12; color: white; display: none; }
+        .auto-gen-btn:disabled { background: #bdc3c7; opacity: 0.5; }
+
+        #msg { padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; margin-top: 10px; min-height: 20px; }
+    </style>
+</head>
+<body>
+
+<div id="sidebar">
+    <h2 id="title">題目一：手動鋪滿</h2>
+    <div id="desc" class="desc">點擊右上方<b>【生成器】</b>。當你鋪滿底層後，可以使用快捷按鈕加快速度。</div>
+    
+    <div class="input-group">
+        這長方體的長約數粒 <input type="number" id="valL" disabled> 粒，<br>即長是 <input type="number" id="cmL" disabled> cm。<br>
+        這長方體闊約數粒 <input type="number" id="valW" disabled> 粒，<br>即闊是 <input type="number" id="cmW" disabled> cm。<br>
+        這長方體高約數粒 <input type="number" id="valH" disabled> 粒，<br>即高是 <input type="number" id="cmH" disabled> cm。<br>
+        <hr>
+        填滿共用了 <input type="number" id="total" disabled> 粒，<br>
+        體積是 <input type="number" id="vol" disabled> 立方厘米。
+    </div>
+
+    <!-- 第一題專用快速按鈕 -->
+    <button id="quick-layer-btn" class="btn" onclick="addOneLayer()">⚡ 向上鋪一層 (快速)</button>
+
+    <!-- 第二題自動按鈕 -->
+    <button id="btn-line" class="auto-gen-btn btn" onclick="genLine()">1. 數粒鋪滿一條長</button>
+    <button id="btn-plane" class="auto-gen-btn btn" onclick="genPlane()" disabled>2. 用數粒鋪滿底層</button>
+    <button id="btn-stack" class="auto-gen-btn btn" onclick="genStack()" disabled>3. 用數粒鋪滿長方體</button>
+
+    <button id="check-btn" class="btn" onclick="checkAnswers()">核對答案</button>
+    <button id="next-btn" class="btn" onclick="goToProblem2()">進入下一題</button>
+    <div id="msg"></div>
+</div>
+
+<div id="canvas-container"></div>
+
+<script>
+    let gridSize = 35;
+    let mode = 1; 
+    let currentProb = { l: 10, w: 6, h: 5 };
+    let cubes = [];
+
+    function setup() {
+        let canvas = createCanvas(windowWidth - 340, windowHeight, WEBGL);
+        canvas.parent('canvas-container');
+        pixelDensity(displayDensity());
+    }
+
+    function draw() {
+        background(207, 216, 220);
+        camera(400, -450, 500, 0, 0, 0, 0, 1, 0);
+        
+        noFill();
+        stroke(38, 50, 56);
+        strokeWeight(2);
+        push();
+        translate(0, - (currentProb.h * gridSize)/2, 0);
+        box(currentProb.l * gridSize, currentProb.h * gridSize, currentProb.w * gridSize);
+        pop();
+
+        fill(76, 175, 80, 230); 
+        stroke(255); 
+        strokeWeight(1);
+        for (let cube of cubes) {
+            push();
+            translate(
+                (cube.x - (currentProb.l-1)/2) * gridSize,
+                - (cube.z + 0.5) * gridSize,
+                (cube.y - (currentProb.w-1)/2) * gridSize
+            );
+            box(gridSize - 1); 
+            pop();
+        }
+        
+        drawUI();
+        checkUnlockLogic();
+    }
+
+    function drawUI() {
+        push();
+        resetMatrix(); ortho();
+        translate(width/2 - 95, -height/2 + 95);
+        fill(27, 94, 32, 100); noStroke();
+        rect(5, 5, 90, 90, 20);
+        fill(76, 175, 80); stroke(255); strokeWeight(3);
+        rect(0, 0, 90, 90, 20);
+        fill(255); noStroke(); textAlign(CENTER, CENTER); textStyle(BOLD); textSize(18);
+        text("生成器\n(按此)", 45, 45);
+        pop();
+    }
+
+    function touchStarted() {
+        if (mouseX > width - 150 && mouseY < 150) {
+            triggerAddCube();
+            return false;
+        }
+    }
+
+    function mousePressed() {
+        if (mouseX > width - 150 && mouseY < 150) {
+            triggerAddCube();
+        }
+    }
+
+    function triggerAddCube() {
+        if (cubes.length < currentProb.l * currentProb.w * currentProb.h) {
+            addOneCube();
+        }
+    }
+
+    function addOneCube() {
+        let total = cubes.length;
+        let z = floor(total / (currentProb.l * currentProb.w));
+        let rem = total % (currentProb.l * currentProb.w);
+        let y = floor(rem / currentProb.l);
+        let x = rem % currentProb.l;
+        cubes.push({x: x, y: y, z: z});
+    }
+
+    // 第一題快速鋪層邏輯：增加一整個底面積的數量
+    function addOneLayer() {
+        let layerSize = currentProb.l * currentProb.w;
+        let remaining = (currentProb.l * currentProb.w * currentProb.h) - cubes.length;
+        let toAdd = Math.min(layerSize, remaining);
+        
+        for(let i=0; i < toAdd; i++) {
+            addOneCube();
+        }
+    }
+
+    function checkUnlockLogic() {
+        let maxX = 0, maxY = 0, maxZ = 0;
+        cubes.forEach(c => {
+            if (c.x + 1 > maxX) maxX = c.x + 1;
+            if (c.y + 1 > maxY) maxY = c.y + 1;
+            if (c.z + 1 > maxZ) maxZ = c.z + 1;
+        });
+
+        if (mode === 1) {
+            // 第一題解鎖條件
+            if (maxX > 9) unlock('valL', 'cmL');
+            if (maxY > 5) unlock('valW', 'cmW');
+            if (maxZ > 4) unlock('valH', 'cmH');
+
+            // ⚡ 核心更正：當長 > 9 且 闊 > 5，顯示快速鋪層按鈕
+            if (maxX > 9 && maxY > 5 && cubes.length < (currentProb.l * currentProb.w * currentProb.h)) {
+                document.getElementById('quick-layer-btn').style.display = 'block';
+            } else {
+                document.getElementById('quick-layer-btn').style.display = 'none';
+            }
+
+        } else {
+            // 第二題解鎖條件
+            if (maxX > 1) unlock('valL', 'cmL');
+            if (maxY > 2) {
+                unlock('valW', 'cmW');
+                document.getElementById('btn-plane').disabled = false;
+            }
+            if (maxZ > 2) {
+                unlock('valH', 'cmH');
+                document.getElementById('btn-stack').disabled = false;
+            }
+            if (cubes.length >= currentProb.l) document.getElementById('btn-plane').disabled = false;
+            if (cubes.length >= currentProb.l * currentProb.w) document.getElementById('btn-stack').disabled = false;
+        }
+
+        if (cubes.length === currentProb.l * currentProb.w * currentProb.h) {
+            unlock('total', 'vol');
+        }
+    }
+
+    function unlock(a, b) {
+        document.getElementById(a).disabled = false;
+        document.getElementById(b).disabled = false;
+    }
+
+    // 第二題自動功能
+    function genLine() {
+        cubes = [];
+        for(let i=0; i<currentProb.l; i++) cubes.push({x: i, y: 0, z: 0});
+    }
+
+    function genPlane() {
+        cubes = [];
+        for(let j=0; j<currentProb.w; j++) {
+            for(let i=0; i<currentProb.l; i++) cubes.push({x: i, y: j, z: 0});
+        }
+    }
+
+    function genStack() {
+        cubes = [];
+        for(let k=0; k<currentProb.h; k++) {
+            for(let j=0; j<currentProb.w; j++) {
+                for(let i=0; i<currentProb.l; i++) cubes.push({x: i, y: j, z: k});
+            }
+        }
+    }
+
+    function checkAnswers() {
+        let l = parseInt(document.getElementById('valL').value);
+        let w = parseInt(document.getElementById('valW').value);
+        let h = parseInt(document.getElementById('valH').value);
+        let t = parseInt(document.getElementById('total').value);
+        let v = parseInt(document.getElementById('vol').value);
+        let target = currentProb.l * currentProb.w * currentProb.h;
+
+        let m = document.getElementById('msg');
+        if (l === currentProb.l && w === currentProb.w && h === currentProb.h && t === target && v === target) {
+            m.style.color = "#2e7d32";
+            m.innerText = "✨ 完美！節省了時間也學會了知識！";
+            document.getElementById('next-btn').style.display = 'block';
+        } else {
+            m.style.color = "#c62828";
+            m.innerText = "❌ 數字不對，請檢查鋪設的數量。";
+        }
+    }
+
+    function goToProblem2() {
+        mode = 2;
+        currentProb = { l: 7, w: 5, h: 9 };
+        cubes = [];
+        document.getElementById('title').innerText = "題目二：探索規律";
+        document.getElementById('desc').innerText = "現在使用自動按鈕來觀察長、闊、高與體積的公式關係。";
+        document.getElementById('quick-layer-btn').style.display = 'none';
+        document.querySelectorAll('.auto-gen-btn').forEach(b => b.style.display = 'block');
+        document.getElementById('next-btn').style.display = 'none';
+        document.getElementById('msg').innerText = "";
+        document.querySelectorAll('input').forEach(i => { i.value = ''; i.disabled = true; });
+    }
+
+    function windowResized() {
+        resizeCanvas(windowWidth - 340, windowHeight);
+    }
+</script>
+</body>
+</html>
